@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="deploy" name="CMCS builder">
+	<property file="${env_name}/deploy.properties"/>
+
+	<target name="deploy">
+		<antcall target="stop" />
+		<antcall target="remove" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf /data/logs/zjlh-cmcs-web/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker login harborka.qianfan123.com -p Hkd201806 -u hdkadev"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker pull harborka.qianfan123.com/smd/zjlh-cmcs-web:${image.version}"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker run -d --restart=on-failure:3 -v /etc/localtime:/etc/localtime:ro -p 8080:8080 -v /data/zjlh-cmcs-web/application.properties:/opt/heading/zjlh-cmcs-web/application.properties -e spring.datasource.url=jdbc:postgresql://rm-bp1g03v4jn11iz4i0.pg.rds.aliyuncs.com:3433/cmcs -e spring.datasource.username=zjlhhs -e spring.datasource.password=Hd87251002 -v /data/logs/zjlh-cmcs-web:/apache-tomcat/logs --name zjlh-cmcs-web harborka.qianfan123.com/smd/zjlh-cmcs-web:${image.version}"/>
+	</target>
+	
+	<target name="stop" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" failonerror="false" trust="true" command="docker stop zjlh-cmcs-web"/>
+	</target>
+	
+	<target name="remove" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" failonerror="false" trust="true" command="docker rm zjlh-cmcs-web"/>
+	</target>
+	
+	<target name="start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker start zjlh-cmcs-web"/>
+	</target>
+</project>

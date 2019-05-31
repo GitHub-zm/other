@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="build" name="PDS builder">
+
+	<import file="../common-targets.xml"/>
+	<import file="../orchid-targets.xml"/>
+	<property file="${env.name}/build.properties"/>
+
+	<target name="build">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+		
+		<condition property="isRtpRelease">  
+			<isset property="app.report.root"/>
+		</condition>  
+
+		<antcall target="init" />
+		<antcall target="checkout" />
+		<antcall target="install" />
+		<antcall target="pds-build" />
+	</target>
+	
+	<target name="start">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="pds-start" />
+	</target>
+	
+	<target name="stop">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="pds-stop" />
+	</target>
+
+	<target name="clean">
+		<delete dir="${ws}" />
+	</target>
+	
+	<!-- 构建 start -->
+
+	<target name="init">
+		<delete dir="${ws}/tmp" />
+		<delete dir="${ws}/release" />
+	</target>
+
+	<target name="checkout" >
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.amd.client.branch}" />
+			<param name="_git.url" value="${git.amd.client}" />
+			<param name="_git.clone.dir" value="${ws}/amd-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.amd.server.branch}" />
+			<param name="_git.url" value="${git.amd.server}" />
+			<param name="_git.clone.dir" value="${ws}/amd-server" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.acnt.client.branch}" />
+			<param name="_git.url" value="${git.acnt.client}" />
+			<param name="_git.clone.dir" value="${ws}/acnt-client" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.acnt.server.branch}" />
+			<param name="_git.url" value="${git.acnt.server}" />
+			<param name="_git.clone.dir" value="${ws}/acnt-server" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.client.branch}" />
+			<param name="_git.url" value="${git.pds.client}" />
+			<param name="_git.clone.dir" value="${ws}/pds-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.server.branch}" />
+			<param name="_git.url" value="${git.pds.server}" />
+			<param name="_git.clone.dir" value="${ws}/pds-server" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hvd.client.branch}" />
+			<param name="_git.url" value="${git.hvd.client}" />
+			<param name="_git.clone.dir" value="${ws}/hvd-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.configs.branch}" />
+			<param name="_git.url" value="${git.configs}" />
+			<param name="_git.clone.dir" value="${ws}/configs" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.sdk.branch}" />
+			<param name="_git.url" value="${git.hdpos.sdk}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-sdk" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.scm-external-adapter.branch}" />
+			<param name="_git.url" value="${git.scm-external-adapter}" />
+			<param name="_git.clone.dir" value="${ws}/scm-external-adapter" />
+		</antcall>
+		
+		<exec executable="svn">
+			<arg value="checkout" />
+			<arg value="http://hddenv/svn/zjlh/scm/src/环境部署" />
+			<arg value="${ws}/deploy" />
+		</exec>
+
+	</target>
+	
+	<target name="install">
+		<antcall target="install_orchid">
+			<param name="_git.orchid.branch" value="${git.orchid.branch}" />
+			<param name="_git.orchid.url" value="${git.orchid}" />
+			<param name="_git.orchid.ws" value="${ws}" />
+		</antcall>
+		<antcall target="install-parent" />
+		<antcall target="install-api" />
+		<antcall target="install-server" />
+	</target>
+
+	<target name="install-parent">
+		<exec executable="mvn.bat" dir="${ws}/amd-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/amd-server">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-server">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hvd-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/scm-external-adapter">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-api">
+		<exec executable="mvn.bat" dir="${ws}/hdpos-sdk">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/amd-client/zjlh-amdpds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-api-wms">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-spi">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+		<exec executable="mvn.bat" dir="${ws}/acnt-client/zjlh-acntpds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hvd-client/zjlh-hvd-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-server">
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-router">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-router-rs">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/scm-external-adapter/pos46-adapter">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/scm-external-adapter/po-adapter">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/amd-server/zjlh-amdpds-server">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-server/zjlh-acntpds-server-io">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-server/zjlh-acntpds-server">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-io">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<!--<exec executable="mvn.bat" dir="${ws}/pds-server/pds-bill-sync">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>-->
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-mass-data">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-service-core">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-spi-provider">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-common-service">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-kafka">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-service-impl">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+	
+	<target name="pds-build" >
+		<antcall target="pds-war" />
+		<antcall target="pds-release" />
+	</target>
+	
+	<target name="pds-war">
+		<exec executable="mvn.bat" dir="${ws}/amd-server/zjlh-amdpds-web">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="package" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-server/zjlh-acntpds-web">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="package" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-web">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="package" />
+		</exec>
+	</target>
+
+	<target name="pds-release">
+		<antcall target="pds-release-replace">
+			<param name="type" value="${env.name}" />
+		</antcall>
+		
+		<antcall target="pds-stop" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.amd.root}/${app.amd.name}/logs/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.acnt.root}/${app.acnt.name}/logs/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdsa.root}/${app.pdsa.name}/logs/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdsb.root}/${app.pdsb.name}/logs/*"/>
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.amd.root}/${app.amd.name}/webapps/zjlh-amdpds-web"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.acnt.root}/${app.acnt.name}/webapps/zjlh-acntpds-web"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdsa.root}/${app.pdsa.name}/webapps/pds-web"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdsb.root}/${app.pdsb.name}/webapps/pds-web"/>
+		
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.amd.root}/${app.amd.name}/webapps" file="${ws}/release/${env.name}/zjlh-amdpds-web.war" trust="true" />
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.acnt.root}/${app.acnt.name}/webapps" file="${ws}/release/${env.name}/zjlh-acntpds-web.war" trust="true" />
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.pdsa.root}/${app.pdsa.name}/webapps" file="${ws}/release/${env.name}/pdsa/pds-web.war" trust="true" />
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.pdsb.root}/${app.pdsb.name}/webapps" file="${ws}/release/${env.name}/pdsb/pds-web.war" trust="true" />
+
+		<antcall target="report-release" />		
+		
+		<antcall target="pds-start" />		
+	</target>
+	
+	<target name="report-release"  if="isRtpRelease">
+		<!-- 报表服务 -->
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -f  ${app.report.root}/${app.report.name}/webapps/WebReport/WEB-INF/resources/datasource.xml"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf  ${app.report.root}/${app.report.name}/webapps/WebReport/WEB-INF/reportlets/pds"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="mkdir  ${app.report.root}/${app.report.name}/webapps/WebReport/WEB-INF/reportlets/pds"/>
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}: ${app.report.root}/${app.report.name}/webapps/WebReport/WEB-INF/resources" file="${ws}/configs/report/${env.name}/report/datasource.xml" trust="true" />
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}: ${app.report.root}/${app.report.name}/webapps/WebReport/WEB-INF/reportlets/pds" trust="true" >
+			<fileset dir="${ws}/deploy/报表" />
+		</scp>
+	</target>
+	
+	<target name="pds-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.pdsa.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.pdsb.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.acnt.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.amd.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+	</target>
+	
+	<target name="pds-start" >
+	    <parallel failonany="true">
+          <antcall target="pds-amd-start" />
+          <antcall target="pds-acnt-start" />
+          <antcall target="pdsb-start" />
+		  <antcall target="pdsa-start" />
+        </parallel>
+	</target>
+		
+	<target name="pds-amd-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.amd.root}/${app.amd.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.amd.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动amd完成。</echo>
+	</target>
+	<target name="pds-acnt-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.acnt.root}/${app.acnt.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.acnt.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动acnt完成。</echo>
+	</target>
+	<target name="pdsb-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.pdsb.root}/${app.pdsb.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.pdsb.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动pdsb完成。</echo>
+	</target>
+	<target name="pdsa-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.pdsa.root}/${app.pdsa.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.pdsa.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动pdsa完成。</echo>
+	</target>
+
+	<target name="pds-release-replace">
+		<delete dir="${ws}/release/${type}}" />
+		<mkdir dir="${ws}/release/${type}" />
+		<mkdir dir="${ws}/release/${type}/pdsa" />
+		<mkdir dir="${ws}/release/${type}/pdsb" />
+
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/zjlh-amdpds-web.war" overwrite="true">
+			<fileset dir="${ws}/amd-server/zjlh-amdpds-web/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/pdsamd/${type}/amd">
+				<include name="*.properties" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/zjlh-amdpds-web.war" update="true" basedir="${ws}/tmp/">
+			<fileset dir="${ws}/tmp/WEB-INF/classes">
+				<include name="zjlh-amd-web.properties" />
+			</fileset>
+		</jar>
+
+
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/zjlh-acntpds-web.war" overwrite="true">
+			<fileset dir="${ws}/acnt-server/zjlh-acntpds-web/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/pdsacnt/${type}/acnt">
+				<include name="*.properties" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/zjlh-acntpds-web.war" update="true" basedir="${ws}/tmp/">
+			<fileset dir="${ws}/tmp/WEB-INF/classes">
+				<include name="zjlh-acnt-web.properties" />
+			</fileset>
+		</jar>
+		
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/pdsa/pds-web.war" overwrite="true">
+			<fileset dir="${ws}/pds-server/pds-web/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/pds/${type}/pdsa">
+				<include name="*.properties" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp" overwrite="true">
+			<fileset dir="${ws}/configs/pds/${type}/pdsa">
+				<include name="*.json" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/pdsa/pds-web.war" update="true" basedir="${ws}/tmp/">
+			<fileset dir="${ws}/tmp/WEB-INF/classes">
+				<include name="pds-web.properties" />
+			</fileset>
+			<fileset dir="${ws}/tmp/">
+				<include name="appcfg.json" />
+			</fileset>
+		</jar>
+
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/pdsb/pds-web.war" overwrite="true">
+			<fileset dir="${ws}/pds-server/pds-web/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/pds/${type}/pdsb">
+				<include name="*.properties" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp" overwrite="true">
+			<fileset dir="${ws}/configs/pds/${type}/pdsb">
+				<include name="*.json" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/pdsb/pds-web.war" update="true" basedir="${ws}/tmp/">
+			<fileset dir="${ws}/tmp/WEB-INF/classes">
+				<include name="pds-web.properties" />
+			</fileset>
+			<fileset dir="${ws}/tmp/">
+				<include name="appcfg.json" />
+			</fileset>
+		</jar>
+	</target>
+
+	<!-- 构建 end -->
+</project>

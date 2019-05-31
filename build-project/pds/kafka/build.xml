@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="build" name="PDS kafka server builder">
+
+	<import file="../../common-targets.xml"/>
+	<property file="${env.name}/build.properties"/>
+
+	<target name="build">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="init" />
+		<antcall target="checkout" />
+		<antcall target="install" />
+		<antcall target="docker-release" />
+		<!-- <antcall target="app-build" /> -->
+	</target>
+	
+	<target name="start">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="docker-start" />
+	</target>
+	
+	<target name="stop">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="docker-stop" />
+	</target>
+
+	<target name="clean">
+		<delete dir="${ws}" />
+	</target>
+	
+	<!-- 构建 start -->
+
+	<target name="init">
+		<delete dir="${ws}/tmp" />
+		<delete dir="${ws}/release" />
+	</target>
+
+	<target name="checkout" >
+	
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.client.branch}" />
+			<param name="_git.url" value="${git.pds.client}" />
+			<param name="_git.clone.dir" value="${ws}/pds-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.server.branch}" />
+			<param name="_git.url" value="${git.pds.server}" />
+			<param name="_git.clone.dir" value="${ws}/pds-server" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.orchid.branch}" />
+			<param name="_git.url" value="${git.orchid}" />
+			<param name="_git.clone.dir" value="${ws}/orchid" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.kafka.branch}" />
+			<param name="_git.url" value="${git.pds.kafka}" />
+			<param name="_git.clone.dir" value="${ws}/pds-kafka-server" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.configs.branch}" />
+			<param name="_git.url" value="${git.configs}" />
+			<param name="_git.clone.dir" value="${ws}/configs" />
+		</antcall>
+	</target>
+	
+	<target name="install">
+		<antcall target="install-parent" />
+		<antcall target="install-api" />
+		<antcall target="install-server" />
+	</target>
+
+	<target name="install-parent">
+		<exec executable="mvn.bat" dir="${ws}/pds-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/orchid">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-api">
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-spi">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/orchid/orchid-commons-core">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/orchid/orchid-commons-ds">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/orchid/orchid-commons-ctask">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-server">
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-router-rs">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-kafka-server">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+			<arg value="-Pdocker-build" />
+		</exec>
+	</target>
+
+	<target name="app-build" >
+		<antcall target="app-release" />
+	</target>
+	
+	<target name="docker-release">	
+		<antcall target="docker-stop" />
+		<antcall target="docker-remove" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdskafka.root}/logs/${app.pdskafka.name}/*"/>
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:/data/heading/${app.pdskafka.name}" trust="true" >
+			<fileset dir="${ws}/configs/pds/${env.name}/kafka/pds-kafka-server">
+			</fileset>
+		</scp>
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker run -d --restart=on-failure:3 --restart=always -p 8080:8080 -v /data/logs/pds-kafka-server:/data/pds-kafka-server/logs -v /data/heading/pds-kafka-server/application.properties:/opt/heading/pds-kafka-server/application.properties --name pks harborka.qianfan123.com/smd/pds-kafka-server:latest"/>
+	</target>
+	
+	<target name="docker-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker stop pks"/>
+	</target>
+	
+	<target name="docker-remove"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker rm pks"/>
+	</target>
+	
+	<target name="docker-start" >
+	   <sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker start pks"/>
+	   <echo>${env.name}启动pds-kafka-server完成。</echo>
+	</target>
+	
+
+	<target name="app-release">	
+		<antcall target="app-release-replace">
+			<param name="type" value="${env.name}" />
+		</antcall>
+		
+		<antcall target="app-stop" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdskafka.root}/${app.pdskafka.name}/logs/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdskafka.root}/${app.pdskafka.name}/lib/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.pdskafka.root}/${app.pdskafka.name}/config/*"/>
+		
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.pdskafka.root}/${app.pdskafka.name}/lib/pds-kafka-server.jar" trust="true" file="${ws}/release/${env.name}/pds-kafka-server.jar" />
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.pdskafka.root}/${app.pdskafka.name}/config" trust="true" >
+			<fileset dir="${ws}/configs/pds/${env.name}/kafka/pds-kafka-server">
+			</fileset>
+		</scp>
+		
+		<antcall target="app-start" />		
+	</target>
+	
+	<target name="app-release-replace">	
+		<delete dir="${ws}/release/${type}}" />
+		<mkdir dir="${ws}/release/${type}" />
+		<mkdir dir="${ws}/release/${type}/config" />
+		
+		<!-- 复制jar -->
+		<copy tofile="${ws}/release/${type}/pds-kafka-server.jar" overwrite="true">
+			<fileset dir="${ws}/pds-kafka-server/target">
+				<include name="pds-kafka-server-*.jar" />
+			</fileset>
+		</copy>
+		
+		<!-- 复制配置文件 -->
+		<copy todir="${ws}/release/${type}/config" overwrite="true">
+			<fileset dir="${ws}/configs/${type}/kafka/pds-kafka-server">
+				<include name="*.properties" />
+			</fileset>
+		</copy>
+	</target>
+	
+	<target name="app-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.pdskafka.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+	</target>
+	
+	<target name="app-start" >
+	   <sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.pdskafka.root}/${app.pdskafka.name}/bin/pds-sink-start.sh start"/>
+		<echo>${env.name}启动pds-kafka-server完成。</echo>
+	</target>
+
+	<!-- 构建 end -->
+	
+	
+	<target name="zookeeper-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker stop zookeeper"/>
+	</target>
+	
+	<target name="zookeeper-start" >
+	   <sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker start zookeeper"/>
+	   <echo>${env.name}启动zookeeper完成。</echo>
+	</target>
+	
+	<target name="kafka-master-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker stop kafka-master"/>
+	</target>
+	
+	<target name="kafka-master-start" >
+	   <sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker start kafka-master"/>
+	   <echo>${env.name}启动kafka master完成。</echo>
+	</target>
+	
+	<target name="kafka-slave-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker stop kafka-slave"/>
+	</target>
+	
+	<target name="kafka-slave-start" >
+	   <sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker start kafka-slave"/>
+	   <echo>${env.name}启动kafka slave完成。</echo>
+	</target>
+</project>

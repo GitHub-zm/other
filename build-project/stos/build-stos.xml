@@ -1,0 +1,463 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="build" name="STOS builder">
+
+   <import file="../common-targets.xml"/>
+   <import file="../orchid-targets.xml"/>
+   <property file="${env.name}/build-stos.properties"/>
+
+	<target name="build">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+		
+		<condition property="isStosRtpRelease">  
+			<isset property="git.stos.report"/>
+		</condition>  
+		
+		<antcall target="init" />
+		<antcall target="checkout" />
+		<antcall target="install" />
+		<antcall target="stos-build" />
+	</target>
+	
+	<target name="stos-build" >
+		<antcall target="stos-war" />
+		<antcall target="stos-release" />
+	</target>
+	
+	<target name="start">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="stos-start" />
+	</target>
+	
+	<target name="stop">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="stos-stop" />
+	</target>
+
+	<target name="clean">
+		<delete dir="${ws}" />
+	</target>
+	
+	<!-- 构建 start -->
+	<target name="init">
+		<delete dir="${ws}/tmp" />
+		<delete dir="${ws}/release" />
+	</target>
+
+	<target name="checkout" unless="release-branch">
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.amd.client.branch}" />
+			<param name="_git.url" value="${git.amd.client}" />
+			<param name="_git.clone.dir" value="${ws}/amd-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.acnt.client.branch}" />
+			<param name="_git.url" value="${git.acnt.client}" />
+			<param name="_git.clone.dir" value="${ws}/acnt-client" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.client.branch}" />
+			<param name="_git.url" value="${git.pds.client}" />
+			<param name="_git.clone.dir" value="${ws}/pds-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.pds.server.branch}" />
+			<param name="_git.url" value="${git.pds.server}" />
+			<param name="_git.clone.dir" value="${ws}/pds-server" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.stos.client.branch}" />
+			<param name="_git.url" value="${git.stos.client}" />
+			<param name="_git.clone.dir" value="${ws}/stos-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.sdk.branch}" />
+			<param name="_git.url" value="${git.hdpos.sdk}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-sdk" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.onlinereturn.branch}" />
+			<param name="_git.url" value="${git.onlinereturn}" />
+			<param name="_git.clone.dir" value="${ws}/online-return" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.repository.branch}" />
+			<param name="_git.url" value="${git.hdpos.repository}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-repository" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.stos.server.branch}" />
+			<param name="_git.url" value="${git.stos.server}" />
+			<param name="_git.clone.dir" value="${ws}/stos-server" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hvd.client.branch}" />
+			<param name="_git.url" value="${git.hvd.client}" />
+			<param name="_git.clone.dir" value="${ws}/hvd-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.configs.branch}" />
+			<param name="_git.url" value="${git.configs}" />
+			<param name="_git.clone.dir" value="${ws}/configs" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.scm-external-adapter.branch}" />
+			<param name="_git.url" value="${git.scm-external-adapter}" />
+			<param name="_git.clone.dir" value="${ws}/scm-external-adapter" />
+		</antcall>
+		
+		<antcall target="checkout-report"/>
+		<antcall target="checkout-testframe"/>
+	</target>
+	
+	<target name="checkout-testframe">
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.testframe.branch}" />
+			<param name="_git.url" value="${git.testframe}" />
+			<param name="_git.clone.dir" value="${ws}/testframe" />
+		</antcall>
+	</target>
+	
+	<target name="checkout-report" if="isStosRtpRelease">
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.stos.report.branch}" />
+			<param name="_git.url" value="${git.stos.report}" />
+			<param name="_git.clone.dir" value="${ws}/stos-report" />
+		</antcall>
+	</target>
+
+	<target name="install">
+		<antcall target="install_orchid">
+			<param name="_git.orchid.branch" value="${git.orchid.branch}" />
+			<param name="_git.orchid.url" value="${git.orchid}" />
+			<param name="_git.orchid.ws" value="${ws}" />
+		</antcall>
+		<antcall target="install-parent" />
+		<antcall target="install-api" />
+		<antcall target="install-server" />
+		<antcall target="install-report" />
+		<antcall target="install-stos" />
+	</target>
+
+	<target name="install-parent">
+		<exec executable="mvn.bat" dir="${ws}/amd-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+
+		<exec executable="mvn.bat" dir="${ws}/pds-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/stos-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/stos-server">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hvd-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/scm-external-adapter">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-api">
+		<exec executable="mvn.bat" dir="${ws}/amd-client/zjlh-amdpds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-api-wms">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-client/pds-spi">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hdpos-sdk">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/online-return">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hdpos-repository">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/stos-client/stos-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/acnt-client/zjlh-acntpds-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hvd-client/zjlh-hvd-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/testframe">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>		
+		
+	</target>
+	
+
+	<target name="install-server">
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-router">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-router-rs">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-io">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<!--<exec executable="mvn.bat" dir="${ws}/pds-server/pds-bill-sync">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>-->
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-mass-data">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-service-core">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-spi-provider">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-common-service">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<!--<exec executable="mvn.bat" dir="${ws}/pds-server/pds-kafka">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/pds-server/pds-service-impl">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>-->
+		<exec executable="mvn.bat" dir="${ws}/scm-external-adapter/wms-adapter">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/scm-external-adapter/pos46-adapter">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+	</target>
+	
+	
+	<target name="install-report" if="isStosRtpRelease">
+		<exec executable="mvn.bat" dir="${ws}/stos-report">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+	
+	<target name="install-stos" >
+		<exec executable="mvn.bat" dir="${ws}/stos-server/stos-service-core">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/stos-server/stos-service">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<!--<exec executable="mvn.bat" dir="${ws}/stos-server/stos-cs-connector">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>-->
+	</target>
+	
+	<target name="stos-war">
+		<exec executable="mvn.bat" dir="${ws}/stos-server/stos-web">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="package" />
+		</exec>
+	</target>
+	
+	<target name="stos-release" >
+		<antcall target="stos-release-replace">
+			<param name="type" value="${env.name}" />
+		</antcall>
+		<antcall target="stos-stop" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.stos.root}/${app.stos.name}/logs/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf  ${app.stos.root}/${app.stos.name}/webapps/stos-web"/>
+		
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.stos.root}/${app.stos.name}/webapps" file="${ws}/release/${env.name}/stos-web.war" trust="true" />
+		
+		<antcall target="stos-start" />
+	</target>
+	
+	<target name="stos-stop"  >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.stos.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+	</target>
+	
+	<target name="stos-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.stos.root}/${app.stos.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.stos.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动stos完成。</echo>
+	</target>
+	
+	<target name="stos-release-replace">
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/stos-web.war" overwrite="true">
+			<fileset dir="${ws}/stos-server/stos-web/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/stos/${type}/stos">
+				<include name="*.json" />
+				<include name="*.properties" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/stos-web.war" update="true" basedir="${ws}/tmp/">
+			<fileset dir="${ws}/tmp/WEB-INF/classes">
+				<include name="dsRouter.json" />
+				<include name="stos-web.properties" />
+				<include name="stos-activeOrgs.properties" />
+				<include name="log4j.properties" />
+			</fileset>
+		</jar>
+	</target>
+	<!-- 构建 end -->
+</project>

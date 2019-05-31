@@ -1,0 +1,13 @@
+# .gitignore for maven
+temp/
+
+# IDE support files
+/.classpath
+/.launch
+/.project
+/.settings
+/*.launch
+/*.tmproj
+/ivy*
+/eclipse
+/.svn

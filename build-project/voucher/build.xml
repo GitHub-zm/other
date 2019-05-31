@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="build" name="Voucher builder">
+
+	<import file="../common-targets.xml"/>
+	<property file="${env.name}/build.properties"/>
+
+	<target name="build">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+		
+		<antcall target="init" />
+		<antcall target="checkout" />
+		<antcall target="install" />
+		<antcall target="voucher-build" />
+	</target>
+	
+	<target name="voucher-build">
+		<antcall target="voucher-war" />
+		<antcall target="voucher-release" />
+	</target>
+	
+	<target name="start">
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="voucher-start" />
+	</target>
+	
+	<target name="stop">
+		<record name="${ws}/log.txt" append="false" action="stop" />
+		
+		<antcall target="voucher-stop" />
+	</target>
+
+	<target name="clean">
+		<delete dir="${ws}" />
+	</target>
+
+	<target name="init">
+		<delete dir="${ws}/tmp" />
+		<delete dir="${ws}/release" />
+	</target>
+	
+	<target name="checkout">
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.voucher.branch}" />
+			<param name="_git.url" value="${git.voucher}" />
+			<param name="_git.clone.dir" value="${ws}/voucher" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.configs.branch}" />
+			<param name="_git.url" value="${git.configs}" />
+			<param name="_git.clone.dir" value="${ws}/configs" />
+		</antcall>
+	</target>
+	
+	<target name="install">
+		<exec executable="mvn.bat" dir="${ws}/voucher">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="voucher-war">
+		<exec executable="mvn.bat" dir="${ws}/voucher">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="package" />
+		</exec>
+	</target>
+	
+	<target name="voucher-release">
+		<antcall target="voucher-release-replace">
+			<param name="type" value="${env.name}" />
+		</antcall>
+		<antcall target="voucher-stop" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.voucher.root}/${app.voucher.name}/logs/*"/>
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.voucher.root}/${app.voucher.name}/webapps/voucher"/>
+		
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.voucher.root}/${app.voucher.name}/webapps" file="${ws}/release/${env.name}/voucher.war" trust="true" />
+		
+		<antcall target="voucher-start" />
+	</target>
+	
+	<target name="voucher-stop" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.voucher.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+	</target>
+	
+	<target name="voucher-start">
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.voucher.root}/${app.voucher.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.voucher.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动Voucher完成。</echo>
+	</target>
+	
+	<target name="voucher-release-replace">
+		<delete dir="${ws}/release/${type}}" />
+		<mkdir dir="${ws}/release/${type}" />
+
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/voucher.war" overwrite="true">
+			<fileset dir="${ws}/voucher/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/voucher/${type}">
+				<include name="*.properties" />
+				<include name="*.json" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/voucher.war" update="true" basedir="${ws}/tmp/">
+		</jar>
+	</target>
+
+	<target name="deploy-run">
+	</target>
+
+	<target name="deploy-test">
+	</target>
+</project>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="deploy" name="HDPOS-WEB builder">
+	<property file="${env_name}/deploy-${env_version}.properties"/>
+
+	<target name="deploy">
+		<antcall target="hdposweb-stop" />
+		<antcall target="hdposweb-remove" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf /data/logs/hdpos-web/*"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker pull harborka.qianfan123.com/smd/hdpos-web:${image.version}"/>
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker run -d --restart=on-failure:3 --restart=always -p 8480:8080 -v /data/logs/hdpos-web:/opt/heading/tomcat7/logs -v /data/heading/hdpos-web/hdpos-web.properties:/opt/heading/tomcat7/webapps/hdpos-web/WEB-INF/classes/hdpos-web.properties -v /data/heading/hdpos-web/log4j.properties:/opt/heading/tomcat7/webapps/hdpos-web/WEB-INF/classes/log4j.properties -v /data/heading/hdpos-web/dsRouter.json:/opt/heading/tomcat7/webapps/hdpos-web/WEB-INF/classes/dsRouter.json -v /data/heading/hdpos-web/functions.properties:/opt/heading/tomcat7/webapps/hdpos-web/WEB-INF/classes/functions.properties -v /data/heading/hdpos-web/hdpos-users.properties:/opt/heading/tomcat7/webapps/hdpos-web/WEB-INF/classes/hdpos-users.properties --name hdpos-web harborka.qianfan123.com/smd/hdpos-web:${image.version}"/>
+	</target>
+	
+	<target name="hdposweb-stop" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" failonerror="false" trust="true" command="docker stop hdpos-web"/>
+	</target>
+	
+	<target name="hdposweb-remove" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" failonerror="false" trust="true" command="docker rm hdpos-web"/>
+	</target>
+	
+	<target name="hdposweb-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="docker start hdpos-web"/>
+	</target>
+</project>

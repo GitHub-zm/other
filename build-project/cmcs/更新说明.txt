@@ -1,0 +1,5 @@
+## 更新环境。
+1. 登录jenkins编译docker镜像。执行“zjlh-cmcs-build”。
+   http://172.17.11.99:8080/job/zjlh-cmcs-build/
+2. 修改“测试->deploy.properties”的“image.version”版本号。
+3. 点击“测试-发布”

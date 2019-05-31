@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+要能够通过VPN访问hddenv(85), hdm2repo(176)
+route add 172.17.0.85 mask 255.255.255.255 192.168.101.130 IF 27
+route add 172.17.0.176 mask 255.255.255.255 192.168.101.130 IF 27
+-->
+
+<project default="build" name="HDPOS-WEB builder">
+
+	<import file="../common-targets.xml"/>
+	<import file="../orchid-targets.xml"/>
+	<property file="${env.name}/build-${env.version}.properties"/>
+
+	<target name="build">
+		<fail unless="ws" message="请使用-Dws=定义工作目录" />
+		<fail unless="wr" message="请使用-Dr=定义是否发布正式环境" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+		
+		<antcall target="init" />
+		<antcall target="checkout" />
+		<antcall target="install" />
+		<antcall target="hdposweb-build" />
+	</target>
+	
+	<target name="hdposweb-build">
+		<antcall target="hdposweb-war" />
+		<antcall target="hdposweb-release" />
+	</target>
+	
+	<target name="start">
+		<fail unless="wr" message="请使用-Dr=定义是否发布正式环境" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+
+		<antcall target="hdposweb-start" />
+	</target>
+	
+	<target name="stop">
+		<fail unless="wr" message="请使用-Dr=定义是否发布正式环境" />
+		<record name="${ws}/log.txt" append="false" action="start" />
+		
+		<antcall target="hdposweb-stop" />
+	</target>
+
+	<target name="clean">
+		<delete dir="${ws}" />
+	</target>
+
+	<target name="init">
+		<delete dir="${ws}/tmp" />
+		<delete dir="${ws}/release" />
+	</target>
+	
+	<target name="checkout">
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.client.branch}" />
+			<param name="_git.url" value="${git.hdpos.client}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-client" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.server.branch}" />
+			<param name="_git.url" value="${git.hdpos.server}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-server" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.web.branch}" />
+			<param name="_git.url" value="${git.hdpos.web}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-web" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.sdk.branch}" />
+			<param name="_git.url" value="${git.hdpos.sdk}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-sdk" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.online.return.branch}" />
+			<param name="_git.url" value="${git.online.return}" />
+			<param name="_git.clone.dir" value="${ws}/online-return" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.repository.branch}" />
+			<param name="_git.url" value="${git.hdpos.repository}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-repository" />
+		</antcall>
+		
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.hdpos.config.branch}" />
+			<param name="_git.url" value="${git.hdpos.config}" />
+			<param name="_git.clone.dir" value="${ws}/hdpos-config" />
+		</antcall>
+
+		<antcall target="checkout_git">
+			<param name="_git.branch.name" value="${git.configs.branch}" />
+			<param name="_git.url" value="${git.configs}" />
+			<param name="_git.clone.dir" value="${ws}/configs" />
+		</antcall>
+		
+	</target>
+	
+	<target name="install">
+		<antcall target="install_orchid">
+			<param name="_git.orchid.branch" value="${git.orchid.branch}" />
+			<param name="_git.orchid.url" value="${git.orchid}" />
+			<param name="_git.orchid.ws" value="${ws}" />
+		</antcall>
+		<antcall target="install-parent" />
+		<antcall target="install-api" />
+		<antcall target="install-server" />
+	</target>
+
+	<target name="install-parent">
+		<exec executable="mvn.bat" dir="${ws}/hdpos-client">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+		<exec executable="mvn.bat" dir="${ws}/hdpos-sdk">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+		<exec executable="mvn.bat" dir="${ws}/hdpos-repository">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+		<exec executable="mvn.bat" dir="${ws}/hdpos-config">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+		<exec executable="mvn.bat" dir="${ws}/online-return">
+			<arg value="-N" />
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-api">
+		<exec executable="mvn.bat" dir="${ws}/hdpos-client/hdpos-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		<exec executable="mvn.bat" dir="${ws}/hdpos-config/hdpos-config-api">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="install-server">		
+		<exec executable="mvn.bat" dir="${ws}/hdpos-config/hdpos-config-server">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+		
+		<exec executable="mvn.bat" dir="${ws}/hdpos-server">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="install" />
+		</exec>
+	</target>
+
+	<target name="hdposweb-war">
+		<exec executable="mvn.bat" dir="${ws}/hdpos-web">
+			<arg value="-Dmaven.test.skip=true" />
+			<arg value="-Dmaven.javadoc.skip=true" />
+			<arg value="clean" />
+			<arg value="package" />
+		</exec>
+	</target>
+
+	<target name="hdposweb-release">
+		<antcall target="hdposweb-release-replace">
+			<param name="type" value="${env.name}" />
+		</antcall>
+		<antcall target="hdposweb-stop" />
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.hpw.root}/${app.hpw.name}/logs/*"/>
+		
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="rm -rf ${app.hpw.root}/${app.hpw.name}/webapps/hdpos-web"/>
+		
+		<scp todir="${app.server.user}:${app.server.pwd}@${app.server.ip}:${app.hpw.root}/${app.hpw.name}/webapps" file="${ws}/release/${env.name}/hdpos-web.war" trust="true" />
+		
+		<antcall target="hdposweb-start" />
+	</target>
+	
+	<target name="hdposweb-stop" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="ps -ef|grep ${app.hpw.name}|grep -v grep|cut -c 9-15|xargs -r kill -9"/>
+	</target>
+	
+	<target name="hdposweb-start" >
+		<sshexec host="${app.server.ip}" username="${app.server.user}"  password="${app.server.pwd}" trust="true" command="${app.hpw.root}/${app.hpw.name}/bin/startup.sh"/>
+		<waitfor maxwait="10" maxwaitunit="minute" checkevery="1000">
+			<http url="http://${app.server.ip}:${app.hpw.port}/"/>
+		</waitfor>
+		<echo>${env.name}启动HDPOS-WEB完成。</echo>
+	</target>
+	
+	<target name="hdposweb-release-replace">
+		<delete dir="${ws}/release/${type}" />
+		<mkdir dir="${ws}/release/${type}" />
+
+		<delete dir="${ws}/tmp" />
+		<mkdir dir="${ws}/tmp/WEB-INF/classes" />
+		<copy tofile="${ws}/release/${type}/hdpos-web.war" overwrite="true">
+			<fileset dir="${ws}/hdpos-web/target">
+				<include name="*.war" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/WEB-INF/classes" overwrite="true">
+			<fileset dir="${ws}/configs/hdpos-web/${type}/${env.version}">
+				<include name="*.properties" />
+				<include name="dsRouter.json" />
+			</fileset>
+		</copy>
+		<copy todir="${ws}/tmp/" overwrite="true">
+			<fileset dir="${ws}/configs/hdpos-web/${type}/${env.version}">
+				<include name="appcfg.json" />
+			</fileset>
+		</copy>
+		<jar jarfile="${ws}/release/${type}/hdpos-web.war" update="true" basedir="${ws}/tmp/">
+		</jar>
+	</target>
+
+	<target name="deploy-run">
+	</target>
+
+	<target name="deploy-test">
+	</target>
+</project>
